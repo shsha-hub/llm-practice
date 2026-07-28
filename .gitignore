@@ -1,0 +1,59 @@
+# ==========================================
+# 1. PyTorch & Transformer / ML 특화 항목
+# ==========================================
+# 학습된 모델 가중치 및 체크포인트 (대용량 파일)
+*.pt
+*.pth
+*.bin
+*.ckpt
+*.safetensors
+*.onnx
+
+# 체크포인트 디렉토리
+checkpoint/
+checkpoints/
+runs/
+output/
+outputs/
+saved_models/
+
+# Hugging Face Transformer 캐시 및 로컬 저장 폴더
+.cache/
+huggingface/
+wandb/
+
+# TensorBoard 및 라이브러리 로그
+logs/
+*.log
+events.out.tfevents.*
+
+# 데이터셋 (용량이 크거나 직접 배포하지 않는 데이터)
+data/
+datasets/
+*.csv
+*.jsonl
+*.parquet
+*.h5
+
+# ==========================================
+# 2. Python 기본 환경 및 가상환경
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 가상환경 (venv, conda 등)
+venv/
+.venv/
+env/
+.env/
+conda-env/
+
+# Jupyter Notebook 폰트/체크포인트
+.ipynb_checkpoints/
+
+# IDE 및 OS 설정
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

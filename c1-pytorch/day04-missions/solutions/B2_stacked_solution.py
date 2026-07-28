@@ -1,0 +1,183 @@
+"""
+🟡 B-2 정답 — 2층·dropout 과 hidden 뜯어보기
+
+TODO 5개를 채운 결과다. **먼저 스스로 해 보고** 막힐 때만 열어 보자.
+"""
+
+# %%
+import sys
+from pathlib import Path
+
+import torch
+import torch.nn as nn
+from torch.utils.data import TensorDataset, DataLoader
+
+try:
+    _HERE = Path(__file__).resolve().parent
+except NameError:
+    _HERE = Path.cwd()
+sys.path.insert(0, str(_HERE.parent.parent))
+
+from imdb_data import load_imdb
+from textutils import tokenize_en, build_vocab, pad_and_tensor
+from model import LstmClassifier
+
+torch.manual_seed(0)
+
+# %% [markdown]
+# ## 1) hidden 안에는 무엇이 들어 있나
+
+# %%
+x = torch.randn(8, 30, 16)
+
+# TODO 1 — 2층 LSTM
+lstm2 = nn.LSTM(16, 24, num_layers=2, batch_first=True)
+
+lstm2.eval()
+with torch.no_grad():
+    output, (h_n, c_n) = lstm2(x)
+
+print("  output :", tuple(output.shape))
+print("  h_n    :", tuple(h_n.shape))
+print("  c_n    :", tuple(c_n.shape))
+
+# TODO 2 — 답
+print("""
+  [답]
+   · output (8, 30, 24) = (배치, 길이, 은닉).
+     가운데 30 은 **시간 위치**다. 맨 위 층이 매 단어마다 낸 은닉 상태가 순서대로 들어 있다.
+     층을 쌓아도 이 모양은 변하지 않는다 — 중간 층 출력은 여기 담기지 않는다.
+   · h_n (2, 8, 24) 의 앞 2 는 **층수**다. 각 층이 마지막 시간에 낸 은닉 상태다.
+   · c_n 이 h_n 과 모양이 같은 이유: 셀 상태도 층마다·문장마다 하나씩,
+     은닉 상태와 같은 크기의 벡터로 유지되기 때문이다. (GRU 에는 이게 아예 없다)
+""")
+
+
+# %% [markdown]
+# ## 2) 어느 것이 어느 층인가
+
+# %%
+# TODO 3
+print("  h_n[-1] == output[:, -1, :] :", torch.equal(h_n[-1], output[:, -1, :]))
+print("  h_n[0]  == output[:, -1, :] :", torch.equal(h_n[0], output[:, -1, :]))
+
+print("""
+  [답] h_n[-1] 쪽이 True.
+   · output 에는 **맨 위 층**의 은닉 상태만 담긴다 → output[:, -1, :] = 맨 위 층의 마지막
+   · h_n 은 아래 층부터 순서대로 쌓여 있다      → h_n[-1] = 맨 위 층의 마지막
+   · False 로 나온 h_n[0] 은 2층에서 **맨 아래 층**을 가리킨다.
+     이걸 분류에 쓰면 '반쯤만 읽은 요약'으로 판단하는 셈이라 성능이 조용히 떨어진다.
+     → 그래서 층수와 무관하게 안전한 h_n[-1] 을 쓴다.
+""")
+
+
+# %% [markdown]
+# ## 3) dropout 은 언제 켜지나
+
+# %%
+lstm_dp = nn.LSTM(16, 24, num_layers=2, batch_first=True, dropout=0.5)
+
+# TODO 4
+lstm_dp.eval()
+with torch.no_grad():
+    e1, _ = lstm_dp(x)
+    e2, _ = lstm_dp(x)
+
+lstm_dp.train()
+t1, _ = lstm_dp(x)
+t2, _ = lstm_dp(x)
+
+print(f"  eval  두 번이 같은가 : {torch.allclose(e1, e2)}   ← 항상 같아야 한다")
+print(f"  train 두 번이 같은가 : {torch.allclose(t1.detach(), t2.detach())}   ← 매번 다른 자리를 끄니 다르다")
+print("""
+  [답] eval=True, train=False.
+   dropout 은 **훈련 중에만** 켜진다. 평가할 때 model.eval() 을 빼먹으면
+   같은 데이터인데 점수가 매번 흔들리고, 대체로 실제보다 낮게 나온다.
+   ⚠️ dropout 은 **층과 층 사이**에만 걸린다. 맨 위 층 출력에는 걸리지 않는다.
+      그래서 1층에 dropout 을 주면 아무 일도 일어나지 않는다(파이토치가 경고를 낸다).
+""")
+
+
+# %% [markdown]
+# ## 4) 1층 vs 2층 — 직접 재기
+
+# %%
+VOCAB_SIZE, MAX_LEN = 2000, 100
+BATCH, LR, EPOCHS = 64, 1e-3, 8
+
+train, val = load_imdb(n_train=5000, n_val=2000)
+ttok = [tokenize_en(t) for t in train["text"]]
+vtok = [tokenize_en(t) for t in val["text"]]
+word2idx, _ = build_vocab(ttok, max_size=VOCAB_SIZE)
+X_train = pad_and_tensor(ttok, word2idx, MAX_LEN)
+y_train = torch.tensor(train["label"], dtype=torch.float32)
+X_val = pad_and_tensor(vtok, word2idx, MAX_LEN)
+y_val = torch.tensor(val["label"], dtype=torch.float32)
+
+
+def run(num_layers, dropout, seed):
+    torch.manual_seed(seed)
+    loader = DataLoader(TensorDataset(X_train, y_train), batch_size=BATCH, shuffle=True)
+    m = LstmClassifier(len(word2idx), 32, 32,
+                       num_layers=num_layers, dropout=dropout)
+    opt = torch.optim.Adam(m.parameters(), lr=LR)
+    crit = nn.BCELoss()
+    best = 0.0
+    for _ in range(EPOCHS):
+        m.train()
+        for xb, yb in loader:
+            opt.zero_grad(); crit(m(xb), yb).backward(); opt.step()
+        m.eval()
+        with torch.no_grad():
+            best = max(best, ((m(X_val) > 0.5).float() == y_val).float().mean().item())
+    return best
+
+
+# TODO 5 — for 문 두 겹
+SETTINGS = [
+    ("LSTM 1층 dropout 0.0", 1, 0.0),
+    ("LSTM 2층 dropout 0.3", 2, 0.3),
+    ("LSTM 2층 dropout 0.7", 2, 0.7),
+]
+SEEDS = [42, 43]
+
+results = {}
+for name, layers, dp in SETTINGS:
+    results[name] = [run(layers, dp, s) for s in SEEDS]
+    print(f"  {name} 완료: {[f'{s:.3f}' for s in results[name]]}")
+
+
+# %% [markdown]
+# ## 5) 판단
+
+# %%
+print(f"\n  {'설정':<22} {'결과':<20} {'평균':>8} {'흔들림':>8}")
+print("  " + "-" * 60)
+for name, scores in results.items():
+    print(f"  {name:<22} {str([f'{s:.3f}' for s in scores]):<20} "
+          f"{sum(scores)/len(scores):>8.3f} {max(scores)-min(scores):>8.3f}")
+
+noise = max(max(v) - min(v) for v in results.values())
+names = list(results)
+base = sum(results[names[0]]) / len(results[names[0]])
+print(f"\n  잡음(같은 설정 재실행 최대 흔들림) = {noise:.3f}\n")
+for name in names[1:]:
+    avg = sum(results[name]) / len(results[name])
+    diff = abs(avg - base)
+    if diff > noise * 2:
+        better = name if avg > base else names[0]
+        print(f"  {names[0]} vs {name}: 차이 {diff:.3f} > 잡음×2 → ✅ '{better}' 가 낫다")
+    else:
+        print(f"  {names[0]} vs {name}: 차이 {diff:.3f} ≤ 잡음×2 → ❌ 차이가 있다고 말할 수 없다")
+
+print("""
+  [해설 — 여러분 숫자가 달라도 읽는 법은 같다]
+   · 2층 dropout 0.3 이 1층을 이기지 못하는 경우가 흔하다. 실패가 아니다.
+     데이터 5,000편 · MAX_LEN 100 은 2층이 힘을 쓸 만큼 크지 않다.
+     층을 쌓는 건 **데이터가 크고 문장이 길 때** 값을 한다.
+   · dropout 0.7 은 평균이 가장 낮게 나오는 편이지만, **시드 2개로는 잡음과 구분되지 않는 경우도 많다.**
+     "0.7이 더 나쁘다"고 단정하지 말고, 정말 확인하고 싶으면 시드를 5개로 늘려 다시 재자.
+     적어도 "규제를 세게 걸수록 좋아진다"는 말은 여기서 지지받지 못한다는 건 분명하다.
+   · 결론을 쓸 때 "2층이 나쁘다"가 아니라
+     **"이 조건에서는 2층이 낫다는 증거를 얻지 못했다"** 라고 쓰는 것이 정확하다.
+""")

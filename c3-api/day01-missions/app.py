@@ -24,7 +24,6 @@ html, body, [class*="css"], [class*="st-"] {
 [data-testid="stIconMaterial"] {
     font-family: 'Material Symbols Rounded' !important;
 }
-
 .block-container { padding-top: 2rem; }
 [data-testid="stChatMessage"] {
     padding: 0.9rem 1.1rem;

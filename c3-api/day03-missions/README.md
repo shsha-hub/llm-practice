@@ -1,10 +1,10 @@
 # 날씨 기반 맞춤형 하루 계획 도우미
 
-현재 날씨와 사용자의 지역·가능 시간·선호 활동을 결합해 현실적인 하루 계획을 만들어 주는 Jupyter Notebook 미니 프로젝트입니다.
+현재 날씨와 사용자의 지역·가능 시간·선호 활동을 결합해 현실적인 하루 계획을 만들어 주는 Jupyter Notebook 및 Streamlit 미니 프로젝트입니다.
 
 단순히 모델에게 날씨를 물어보는 것이 아니라, 모델이 `get_weather` 함수 호출을 요청하면 파이썬 코드가 Open-Meteo API에서 실제 날씨를 조회하고, 그 결과를 다시 모델에 전달해 `DailyPlan` 객체를 생성합니다. 이후에는 이전 계획을 기억한 수정 요청, 스트리밍 브리핑, 토큰 사용량 확인, 음성 파일 생성까지 실습할 수 있습니다.
 
-주요 구현 파일은 [mission.ipynb](./mission.ipynb)입니다.
+Jupyter 실습은 [mission.ipynb](./mission.ipynb), 웹 서비스는 [app.py](./app.py)에서 실행합니다.
 
 ---
 
@@ -31,7 +31,10 @@
 
 ```text
 day03-missions/
+├── app.py                    # Streamlit 채팅 UI 및 세션 관리
+├── weather_planner.py        # 공용 API·도메인 로직
 ├── mission.ipynb             # 프로젝트 구현 및 실행 노트북
+├── requirements.txt          # Streamlit 서비스 실행 의존성
 ├── README.md                 # 프로젝트 설명서
 ├── daily_plan_seoul.mp3      # 서울 계획 음성 브리핑 실행 결과
 └── daily_plan_busan.mp3      # 부산 계획 음성 브리핑 실행 결과
@@ -43,19 +46,25 @@ MP3 파일은 노트북의 TTS 셀을 실행한 결과물입니다. 같은 파�
 
 ## 실행 환경
 
-이 노트북은 다음 환경을 기준으로 작성되었습니다.
+이 프로젝트는 다음 환경을 기준으로 작성되었습니다.
 
 - Python 3.12
 - OpenAI Python SDK 3.x
 - Pydantic 2.x
-- Jupyter Notebook 또는 VS Code Notebook
+- Jupyter Notebook, VS Code Notebook 또는 Streamlit
 - 인터넷 연결
 - OpenAI API 키
 
 필요한 패키지가 없다면 가상환경에서 설치합니다.
 
 ```bash
-pip install openai pydantic ipykernel
+pip install -r day03-missions/requirements.txt
+```
+
+노트북 커널도 새로 구성해야 한다면 `ipykernel`을 추가로 설치합니다.
+
+```bash
+pip install ipykernel
 ```
 
 Open-Meteo 호출에는 별도 API 키가 필요하지 않지만, OpenAI Responses·Moderation·TTS API 호출에는 OpenAI API 키와 사용 가능한 계정 한도가 필요합니다.
@@ -73,6 +82,41 @@ API 키는 노트북 코드나 Git 저장소에 직접 작성하지 않는 것�
 ---
 
 ## 실행 방법
+
+### Streamlit 웹 서비스
+
+프로젝트 루트에서 다음 명령을 실행합니다.
+
+```bash
+streamlit run day03-missions/app.py
+```
+
+GUI가 없는 서버나 컨테이너에서는 다음처럼 실행할 수 있습니다.
+
+```bash
+streamlit run day03-missions/app.py --server.headless true
+```
+
+터미널에 표시되는 주소를 브라우저에서 열면 됩니다. 기본 로컬 주소는 일반적으로 `http://localhost:8501`입니다.
+
+웹 앱에서 제공하는 기능은 다음과 같습니다.
+
+- 채팅 입력으로 첫 계획 및 후속 수정 요청
+- 현재 날씨와 활동을 카드 형태로 표시
+- 사용자 브라우저 세션별 `WeatherPlanner`와 대화 기록 분리
+- 선택 가능한 AI 자연어 스트리밍 브리핑
+- Responses 입력·출력·캐시 토큰 표시
+- 새 대화 시작 버튼
+- 최신 계획의 AI 음성 생성·재생·MP3 다운로드
+- API 연결·인증·한도 오류 안내
+
+배포 환경에서는 `OPENAI_API_KEY` 환경변수 또는 Streamlit secrets를 사용할 수 있습니다. `.streamlit/secrets.toml`을 사용할 경우 다음과 같이 설정하되 파일을 Git에 커밋하지 마세요.
+
+```toml
+OPENAI_API_KEY = "YOUR_API_KEY"
+```
+
+### Jupyter Notebook
 
 1. [mission.ipynb](./mission.ipynb)을 엽니다.
 2. 프로젝트의 `.venv` 또는 필요한 패키지가 설치된 Python 커널을 선택합니다.
@@ -143,6 +187,30 @@ display(revised_plan)
 4. OpenAI Responses 구조화 출력 요청
 
 따라서 `ask()`는 로컬 함수처럼 보이지만 네트워크·API 사용량·응답 지연이 발생할 수 있습니다.
+
+### Streamlit 구성
+
+웹 서비스는 화면과 API 로직을 분리했습니다.
+
+```text
+app.py
+├── Streamlit 채팅 UI
+├── session_state 대화·오디오 관리
+├── 계획 카드 렌더링
+└── 사용자 친화적 오류 메시지
+        │
+        ▼
+weather_planner.py
+├── Activity / DailyPlan
+├── Open-Meteo 조회
+├── Function Calling 왕복
+├── previous_response_id
+├── Responses 스트리밍
+├── 토큰 집계
+└── TTS 생성
+```
+
+`WeatherPlanner`를 전역 캐시로 공유하지 않고 `st.session_state`에 보관하므로, 브라우저 사용자 세션마다 대화 상태와 응답 ID가 따로 유지됩니다. 화면을 새로고침해 같은 Streamlit 세션이 유지되는 동안에는 대화를 이어갈 수 있지만, 세션이 종료되거나 서버가 재시작되면 앱의 화면 기록은 사라집니다.
 
 ---
 
@@ -407,7 +475,7 @@ safety_identifier="mission-notebook-user"
 - `metadata`: 프로젝트와 처리 단계를 구분하기 위한 태그입니다.
 - `safety_identifier`: 최종 사용자를 안정적으로 구분하기 위한 값입니다.
 
-현재 `safety_identifier`는 수업용 고정 문자열입니다. 여러 사용자가 이용하는 실제 서비스에서는 이메일이나 이름 같은 개인정보를 직접 보내지 말고, 사용자별로 안정적이면서 개인정보를 노출하지 않는 해시 형태의 값을 사용하는 것이 좋습니다.
+노트북의 `safety_identifier`는 수업용 고정 문자열입니다. Streamlit 앱은 브라우저 세션 ID를 SHA-256으로 해시해 세션별 식별자를 만듭니다. 실제 로그인 사용자가 있는 서비스에서는 이메일이나 이름 같은 개인정보를 직접 보내지 말고, 사용자별로 안정적이면서 개인정보를 노출하지 않는 해시 형태의 값을 사용하는 것이 좋습니다.
 
 ### 14. TTS 음성 브리핑
 
@@ -419,6 +487,8 @@ display(Audio(filename=str(audio_path)))
 스트리밍에서 완성한 `briefing_text`를 음성으로 변환하고 `daily_plan_busan.mp3`로 저장합니다. 저장 후 Jupyter의 `Audio` 위젯으로 바로 재생할 수 있습니다.
 
 현재 노트북의 `gpt-4o-mini-tts`는 강의에서 사용한 모델을 그대로 유지한 것입니다. 모델 제공 상태와 권장 음성 모델은 변경될 수 있으므로 실행 오류가 발생하면 [OpenAI 모델 목록](https://developers.openai.com/api/docs/models)과 음성 관련 공식 문서를 확인하세요.
+
+Streamlit 앱은 현재 제공되는 Speech API 모델인 `tts-1`을 사용하고, 생성된 MP3를 서버 파일로 저장하지 않고 브라우저 세션 메모리에 보관합니다. 사용자는 화면에서 재생하거나 다운로드할 수 있으며, 앱에는 AI 생성 음성임을 표시합니다.
 
 ---
 

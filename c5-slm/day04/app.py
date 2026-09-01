@@ -128,10 +128,7 @@ with assistant_tab:
         if response.confident:
             st.success(f"관련 규칙을 찾았습니다 · 1차 유사도 {top_score:.3f}")
         else:
-            st.warning(
-                f"최상위 유사도 {top_score:.3f}가 기준 {response.confidence_threshold:.2f}보다 "
-                "낮아 답변을 보류합니다."
-            )
+            st.warning(f"최상위 유사도 {top_score:.3f}가 기준 {response.confidence_threshold:.2f}보다 낮아 답변을 보류합니다.")
 
         if use_llm and response.confident:
             try:
@@ -253,7 +250,6 @@ with rules_tab:
         width="stretch",
     )
     st.info(
-        "품목별 기준은 환경부 생활폐기물 분리배출 누리집과 부산광역시 자료, "
-        "요일·시간은 부산진구 공식 안내를 사용합니다. 오래된 부산시 자료만으로 "
-        "일정을 추정하지 않으며, 불명확한 세부 품목은 문의하도록 안내합니다."
+        "품목별 기준은 환경부 생활폐기물 분리배출 누리집과 부산광역시 자료, 요일·시간은 부산진구 공식 안내를 사용합니다."
+        "오래된 부산시 자료만으로 일정을 추정하지 않으며, 불명확한 세부 품목은 문의하도록 안내합니다."
     )

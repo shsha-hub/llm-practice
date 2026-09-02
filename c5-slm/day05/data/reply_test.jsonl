@@ -1,0 +1,5 @@
+{"relation":"아파트 관리실","situation":"새벽마다 주차장 경보음이 반복되어 잠을 설친다","intent":"이번 주 안에 원인 점검 요청","answer":"","expected_keywords":["이번 주","점검"]}
+{"relation":"친구","situation":"공연 티켓을 대신 예매했는데 7만 5천 원을 아직 받지 못했다","intent":"금요일까지 송금 요청","answer":"","expected_keywords":["7만 5천 원","금요일","송금"]}
+{"relation":"프로젝트 리더","situation":"이번 주에 새 기능 두 개가 추가돼 월요일 배포가 어렵다","intent":"목요일로 배포 연기 요청","answer":"","expected_keywords":["목요일","배포"]}
+{"relation":"중고 거래 판매자","situation":"설명에 없던 큰 흠집을 직거래 장소에서 발견했다","intent":"거래를 취소하겠다고 전달","answer":"","expected_keywords":["흠집","취소"]}
+{"relation":"가족","situation":"내 방에 노크 없이 자주 들어온다","intent":"앞으로 들어오기 전에 노크해 달라고 요청","answer":"","expected_keywords":["노크"]}

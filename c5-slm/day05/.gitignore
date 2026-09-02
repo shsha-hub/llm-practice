@@ -1,0 +1,9 @@
+__pycache__/
+
+# 상위 저장소는 모든 data/와 outputs/를 제외한다. 이 과제의 작은 원본 데이터와
+# 비교 결과만 다시 포함하고, 생성 가능한 어댑터/토크나이저 파일은 계속 제외한다.
+!data/
+!data/*.jsonl
+!outputs/
+outputs/*
+!outputs/comparison-*.json

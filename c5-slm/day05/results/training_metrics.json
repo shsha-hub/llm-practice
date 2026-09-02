@@ -1,0 +1,25 @@
+{
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU",
+    "vram_gib": 4.0
+  },
+  "settings": {
+    "epochs": 3,
+    "train_examples": 40,
+    "validation_examples": 8,
+    "trainable_parameters": 3342336,
+    "trainable_percent": 0.1448
+  },
+  "reply": {
+    "elapsed_seconds": 72.8,
+    "peak_allocated_vram_gib": 2.82,
+    "train_loss": 2.1353,
+    "validation_loss_by_epoch": [2.218, 2.095, 2.041]
+  },
+  "fridge": {
+    "elapsed_seconds": 72.7,
+    "peak_allocated_vram_gib": 2.83,
+    "train_loss": 1.4201,
+    "validation_loss_by_epoch": [1.531, 1.161, 1.105]
+  }
+}
